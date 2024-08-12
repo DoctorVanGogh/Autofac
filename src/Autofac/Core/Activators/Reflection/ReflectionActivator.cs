@@ -88,7 +88,10 @@ public class ReflectionActivator : InstanceActivator, IInstanceActivator
             {
                 for (var currentType = t; currentType is not null && currentType != typeof(object); currentType = currentType.BaseType)
                 {
-                    if (currentType.HasRequiredMemberAttribute())
+                    if (currentType
+                        .GetMembers(BindingFlags.Instance | BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.NonPublic)
+                        .Where(mi => mi is FieldInfo or PropertyInfo)
+                        .Any(mi => mi.HasRequiredMemberAttribute()))
                     {
                         return true;
                     }
