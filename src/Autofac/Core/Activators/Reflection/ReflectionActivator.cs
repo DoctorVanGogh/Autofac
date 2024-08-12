@@ -82,23 +82,21 @@ public class ReflectionActivator : InstanceActivator, IInstanceActivator
         // The RequiredMemberAttribute (may)* have Inherit = false on its AttributeUsage options,
         // so walk the tree.
         // (*): see `HasRequiredMemberAttribute` doc for why we dont really know much about the concrete attribute.
-        _anyRequiredMembers = ReflectionCacheSet.Shared.Internal.HasRequiredMemberAttribute.GetOrAdd(
-            _implementationType,
-            static t =>
-            {
-                for (var currentType = t; currentType is not null && currentType != typeof(object); currentType = currentType.BaseType)
+        static bool HasAnyRequiredMembers(Type tt)
+        {
+            return ReflectionCacheSet.Shared.Internal.HasRequiredMemberAttribute.GetOrAdd(
+                tt,
+                static t =>
                 {
-                    if (currentType
+                    return t
                         .GetMembers(BindingFlags.Instance | BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.NonPublic)
                         .Where(mi => mi is FieldInfo or PropertyInfo)
-                        .Any(mi => mi.HasRequiredMemberAttribute()))
-                    {
-                        return true;
-                    }
-                }
+                        .Any(mi => mi.HasRequiredMemberAttribute())
+                        || (t.BaseType is Type bt && bt != typeof(object) && HasAnyRequiredMembers(bt));
+                });
+        }
 
-                return false;
-            });
+        _anyRequiredMembers = HasAnyRequiredMembers(_implementationType);
 
         if (_anyRequiredMembers || _configuredProperties.Length > 0)
         {
